@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Environment variables
+.env
+
+# Frontend
+node_modules/
+dist/
+
+# Downloaded API data (recreated with scripts/download_data.py)
+data/raw/
+data/*.db
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
