@@ -163,6 +163,7 @@ PLAN_FORMAT = {
 
 
 def database_schema(db):
+    """Read allowed columns and small categorical value sets from SQLite."""
     schema = {}
     for table in TABLES:
         columns = [row[1] for row in db.execute(f"PRAGMA table_info({table})")]
@@ -187,6 +188,7 @@ def database_schema(db):
 
 
 def plan_query(question, schema, last_query=None, client=None, error=None):
+    """Ask the model for a typed query plan, never for executable SQL."""
     if client is None:
         if not os.getenv("OPENAI_API_KEY"):
             return None
@@ -239,6 +241,7 @@ Review the plan against the question before returning it."""
 
 
 def qualified_field(field, base, relation, schema):
+    """Resolve a planned field only when its table and column are allowed."""
     if field == "*":
         return "*"
 
@@ -255,6 +258,7 @@ def qualified_field(field, base, relation, schema):
 
 
 def validate_plan(plan, schema):
+    """Reject invalid tables, fields, relations, operators, and limits before SQL."""
     if not plan or plan.get("action") not in {
         "lookup", "list", "count", "distinct", "group",
         "extreme", "check", "clarify", "reject",
@@ -278,10 +282,11 @@ def validate_plan(plan, schema):
         raise ValueError("This action requires a field")
     qualified_field(field, table, relation, schema)
 
+    allowed_operators = {"eq", "ne", "contains", "in", "gt", "gte", "lt", "lte"}
     for item in plan.get("filters", []):
         qualified_field(item["field"], table, relation, schema)
-        if not item.get("values"):
-            raise ValueError("A filter requires a value")
+        if item.get("operator") not in allowed_operators or not item.get("values"):
+            raise ValueError("A filter requires a valid operator and value")
 
     having = plan.get("having", {})
     if having.get("operator") != "none" and action != "group":
@@ -299,7 +304,11 @@ def validate_plan(plan, schema):
     if action == "check":
         check = plan.get("check", {})
         qualified_field(check.get("field", ""), table, relation, schema)
-        if not check.get("values") or plan.get("quantifier") not in {"all", "any", "none"}:
+        if (
+            check.get("operator") not in allowed_operators
+            or not check.get("values")
+            or plan.get("quantifier") not in {"all", "any", "none"}
+        ):
             raise ValueError("Check queries require one complete predicate")
         if plan["answer_mode"] != "boolean":
             raise ValueError("Check queries require a boolean answer")
@@ -309,6 +318,7 @@ def validate_plan(plan, schema):
 
 
 def where_sql(plan, schema):
+    """Compile validated filters into parameterized WHERE clauses."""
     conditions = []
     params = []
     operators = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<=", "eq": "="}
@@ -318,6 +328,7 @@ def where_sql(plan, schema):
         operator = item["operator"]
         values = item["values"]
 
+        # Exact related names resolve to the earliest API ID instead of merging variants.
         filter_table, filter_column = (
             item["field"].split(".", 1)
             if "." in item["field"]
@@ -357,12 +368,14 @@ def where_sql(plan, schema):
 
 
 def select_db(db, sql, params=()):
+    """Apply a final read-only check before executing generated SELECT SQL."""
     if not sql.lstrip().upper().startswith("SELECT") or RESTRICTED_SQL.search(sql):
         raise ValueError("Only read-only SELECT queries are allowed")
     return db.execute(sql, params)
 
 
 def execute_plan(db, plan, schema):
+    """Build and run one validated relational query with bound parameters."""
     table = plan["table"]
     alias = TABLES[table]["alias"]
     relation_sql = RELATIONS[plan["relation"]]["sql"]
@@ -450,6 +463,7 @@ def execute_plan(db, plan, schema):
 
 
 def entity_details(db, table, item):
+    """Expand one entity with its related episodes, characters, or residents."""
     if table == "characters":
         result = dict(db.execute(
             """
@@ -506,6 +520,7 @@ def entity_details(db, table, item):
 
 
 def retrieve(question, last_query=None, client=None, plan=None):
+    """Plan, validate, execute, and package one source-backed retrieval result."""
     db = get_db()
     schema = database_schema(db)
 

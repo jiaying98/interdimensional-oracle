@@ -13,6 +13,7 @@ db_path = Path(__file__).resolve().parents[2] / "data" / "oracle.db"
 
 
 def download(resource):
+    """Follow the API's next links until every page of one resource is loaded."""
     url = f"{api_url}/{resource}"
     results = []
 
@@ -29,175 +30,168 @@ def download(resource):
     return results
 
 
-characters = download("character")
-episodes = download("episode")
-locations = download("location")
+def main():
+    """Download all resources and replace the database in one ingestion run."""
+    characters = download("character")
+    episodes = download("episode")
+    locations = download("location")
 
-character_names = {item["id"]: item["name"] for item in characters}
-episode_names = {item["id"]: item["name"] for item in episodes}
+    episode_names = {item["id"]: item["name"] for item in episodes}
+    location_residents = {item["id"]: [] for item in locations}
+    episode_characters = {item["id"]: [] for item in episodes}
 
-db = sqlite3.connect(db_path)
-db.execute("PRAGMA foreign_keys = ON")
-db.executescript(
-    """
-    DROP TABLE IF EXISTS character_episodes;
-    DROP TABLE IF EXISTS entity_fts;
-    DROP TABLE IF EXISTS characters;
-    DROP TABLE IF EXISTS episodes;
-    DROP TABLE IF EXISTS locations;
-    DROP TABLE IF EXISTS documents;
+    # Character records are the canonical source for stored relationships.
+    for character in characters:
+        location_url = character["location"]["url"]
+        if location_url:
+            location_id = int(location_url.rsplit("/", 1)[-1])
+            location_residents[location_id].append(character["name"])
+        for url in character["episode"]:
+            episode_id = int(url.rsplit("/", 1)[-1])
+            episode_characters[episode_id].append(character["name"])
 
-    CREATE TABLE locations (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        type TEXT,
-        dimension TEXT,
-        url TEXT NOT NULL,
-        created TEXT
-    );
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(db_path)
+    db.execute("PRAGMA foreign_keys = ON")
+    db.executescript(
+        """
+        DROP TABLE IF EXISTS character_episodes;
+        DROP TABLE IF EXISTS entity_fts;
+        DROP TABLE IF EXISTS characters;
+        DROP TABLE IF EXISTS episodes;
+        DROP TABLE IF EXISTS locations;
+        DROP TABLE IF EXISTS documents;
 
-    CREATE TABLE episodes (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        air_date TEXT,
-        air_date_iso TEXT,
-        code TEXT,
-        url TEXT NOT NULL,
-        created TEXT
-    );
+        CREATE TABLE locations (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT,
+            dimension TEXT,
+            url TEXT NOT NULL,
+            created TEXT
+        );
 
-    CREATE TABLE characters (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        status TEXT,
-        species TEXT,
-        type TEXT,
-        gender TEXT,
-        origin_name TEXT,
-        origin_id INTEGER,
-        location_name TEXT,
-        location_id INTEGER,
-        image TEXT,
-        url TEXT NOT NULL,
-        created TEXT,
-        FOREIGN KEY (origin_id) REFERENCES locations(id),
-        FOREIGN KEY (location_id) REFERENCES locations(id)
-    );
+        CREATE TABLE episodes (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            air_date TEXT,
+            air_date_iso TEXT,
+            code TEXT,
+            url TEXT NOT NULL,
+            created TEXT
+        );
 
-    CREATE TABLE character_episodes (
-        character_id INTEGER,
-        episode_id INTEGER,
-        PRIMARY KEY (character_id, episode_id),
-        FOREIGN KEY (character_id) REFERENCES characters(id),
-        FOREIGN KEY (episode_id) REFERENCES episodes(id)
-    );
+        CREATE TABLE characters (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            status TEXT,
+            species TEXT,
+            type TEXT,
+            gender TEXT,
+            origin_name TEXT,
+            origin_id INTEGER,
+            location_name TEXT,
+            location_id INTEGER,
+            image TEXT,
+            url TEXT NOT NULL,
+            created TEXT,
+            FOREIGN KEY (origin_id) REFERENCES locations(id),
+            FOREIGN KEY (location_id) REFERENCES locations(id)
+        );
 
-    CREATE VIRTUAL TABLE entity_fts USING fts5(
-        kind UNINDEXED,
-        ref_id UNINDEXED,
-        title,
-        content,
-        source UNINDEXED
-    );
-    """
-)
+        CREATE TABLE character_episodes (
+            character_id INTEGER,
+            episode_id INTEGER,
+            PRIMARY KEY (character_id, episode_id),
+            FOREIGN KEY (character_id) REFERENCES characters(id),
+            FOREIGN KEY (episode_id) REFERENCES episodes(id)
+        );
 
-for item in locations:
-    db.execute(
-        "INSERT INTO locations VALUES (?, ?, ?, ?, ?, ?)",
-        (
-            item["id"],
-            item["name"],
-            item["type"],
-            item["dimension"],
-            item["url"],
-            item["created"],
-        ),
-    )
-    resident_names = [
-        character_names[int(url.rsplit("/", 1)[-1])] for url in item["residents"]
-    ]
-    content = (
-        f'{item["name"]} is a {item["type"]} in {item["dimension"]}. '
-        f'Residents: {", ".join(resident_names)}.'
-    )
-    db.execute(
-        "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
-        ("location", item["id"], item["name"], content, item["url"]),
+        CREATE VIRTUAL TABLE entity_fts USING fts5(
+            kind UNINDEXED,
+            ref_id UNINDEXED,
+            title,
+            content,
+            source UNINDEXED
+        );
+        """
     )
 
-for item in episodes:
-    air_date_iso = datetime.strptime(item["air_date"], "%B %d, %Y").date().isoformat()
-    db.execute(
-        "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (
-            item["id"],
-            item["name"],
-            item["air_date"],
-            air_date_iso,
-            item["episode"],
-            item["url"],
-            item["created"],
-        ),
-    )
-    cast_names = [
-        character_names[int(url.rsplit("/", 1)[-1])] for url in item["characters"]
-    ]
-    content = (
-        f'{item["name"]} is episode {item["episode"]}, aired on {item["air_date"]}. '
-        f'Characters: {", ".join(cast_names)}.'
-    )
-    db.execute(
-        "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
-        ("episode", item["id"], item["name"], content, item["url"]),
-    )
-
-for item in characters:
-    origin_url = item["origin"]["url"]
-    location_url = item["location"]["url"]
-    origin_id = int(origin_url.rsplit("/", 1)[-1]) if origin_url else None
-    location_id = int(location_url.rsplit("/", 1)[-1]) if location_url else None
-
-    db.execute(
-        "INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            item["id"],
-            item["name"],
-            item["status"],
-            item["species"],
-            item["type"],
-            item["gender"],
-            item["origin"]["name"],
-            origin_id,
-            item["location"]["name"],
-            location_id,
-            item["image"],
-            item["url"],
-            item["created"],
-        ),
-    )
-
-    episode_list = []
-    for url in item["episode"]:
-        episode_id = int(url.rsplit("/", 1)[-1])
-        episode_list.append(episode_names[episode_id])
+    for item in locations:
         db.execute(
-            "INSERT INTO character_episodes VALUES (?, ?)",
-            (item["id"], episode_id),
+            "INSERT INTO locations VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                item["id"], item["name"], item["type"], item["dimension"],
+                item["url"], item["created"],
+            ),
+        )
+        content = (
+            f'{item["name"]} is a {item["type"]} in {item["dimension"]}. '
+            f'Residents: {", ".join(location_residents[item["id"]])}.'
+        )
+        db.execute(
+            "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
+            ("location", item["id"], item["name"], content, item["url"]),
         )
 
-    content = (
-        f'{item["name"]} is {item["status"]}, {item["species"]}, '
-        f'{item["gender"]}. Origin: {item["origin"]["name"]}. '
-        f'Last known location: {item["location"]["name"]}. '
-        f'Episodes: {", ".join(episode_list)}.'
-    )
-    db.execute(
-        "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
-        ("character", item["id"], item["name"], content, item["url"]),
-    )
+    for item in episodes:
+        air_date_iso = datetime.strptime(item["air_date"], "%B %d, %Y").date().isoformat()
+        db.execute(
+            "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                item["id"], item["name"], item["air_date"], air_date_iso,
+                item["episode"], item["url"], item["created"],
+            ),
+        )
+        content = (
+            f'{item["name"]} is episode {item["episode"]}, aired on {item["air_date"]}. '
+            f'Characters: {", ".join(episode_characters[item["id"]])}.'
+        )
+        db.execute(
+            "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
+            ("episode", item["id"], item["name"], content, item["url"]),
+        )
 
-db.commit()
-db.close()
+    for item in characters:
+        origin_url = item["origin"]["url"]
+        location_url = item["location"]["url"]
+        origin_id = int(origin_url.rsplit("/", 1)[-1]) if origin_url else None
+        location_id = int(location_url.rsplit("/", 1)[-1]) if location_url else None
 
-print(f"Created {db_path}")
+        db.execute(
+            "INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                item["id"], item["name"], item["status"], item["species"],
+                item["type"], item["gender"], item["origin"]["name"], origin_id,
+                item["location"]["name"], location_id, item["image"], item["url"],
+                item["created"],
+            ),
+        )
+
+        episode_list = []
+        for url in item["episode"]:
+            episode_id = int(url.rsplit("/", 1)[-1])
+            episode_list.append(episode_names[episode_id])
+            db.execute(
+                "INSERT INTO character_episodes VALUES (?, ?)",
+                (item["id"], episode_id),
+            )
+
+        content = (
+            f'{item["name"]} is {item["status"]}, {item["species"]}, '
+            f'{item["gender"]}. Origin: {item["origin"]["name"]}. '
+            f'Last known location: {item["location"]["name"]}. '
+            f'Episodes: {", ".join(episode_list)}.'
+        )
+        db.execute(
+            "INSERT INTO entity_fts VALUES (?, ?, ?, ?, ?)",
+            ("character", item["id"], item["name"], content, item["url"]),
+        )
+
+    db.commit()
+    db.close()
+    print(f"Created {db_path}")
+
+
+if __name__ == "__main__":
+    main()

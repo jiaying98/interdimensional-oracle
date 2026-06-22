@@ -16,7 +16,7 @@ feedback_path = Path(__file__).resolve().parents[2] / "data" / "feedback.jsonl"
 app = FastAPI(title="Interdimensional Oracle")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -42,6 +42,7 @@ class FeedbackRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
+    """Confirm that the API can open and query the local database."""
     db = get_db()
     db.execute("SELECT 1")
     db.close()
@@ -50,6 +51,7 @@ def health():
 
 @app.get("/api/info")
 def info():
+    """Return the entity totals displayed on the frontend welcome screen."""
     data = get_info()
     return {
         "characters": data["characters"]["count"],
@@ -60,6 +62,7 @@ def info():
 
 @app.post("/api/chat")
 def api_chat(request: ChatRequest):
+    """Pass one question and its small conversation context to the chat flow."""
     return chat(
         request.question,
         request.previous_response_id,
@@ -70,6 +73,7 @@ def api_chat(request: ChatRequest):
 
 @app.post("/api/feedback")
 def feedback(request: FeedbackRequest):
+    """Append helpful/not-helpful feedback to a local JSON Lines file."""
     record = request.model_dump()
     record["created_at"] = datetime.now(timezone.utc).isoformat()
     feedback_path.parent.mkdir(parents=True, exist_ok=True)

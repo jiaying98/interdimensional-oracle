@@ -173,6 +173,13 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["results"], [])
         self.assertIsNone(result["match_type"])
 
+    def test_invalid_operator_is_rejected(self):
+        result = retrieve("Bad operator", plan=plan(
+            filters=[{"field": "status", "operator": "remove", "values": ["Alive"]}],
+        ))
+        self.assertEqual(result["results"], [])
+        self.assertIsNone(result["match_type"])
+
 
 if __name__ == "__main__":
     unittest.main()

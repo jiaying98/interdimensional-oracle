@@ -10,7 +10,7 @@ __pycache__/
 node_modules/
 dist/
 
-# Downloaded API data (recreated with scripts/download_data.py)
+# Generated local data (recreated with python -m app.ingestion)
 data/raw/
 data/*.db
 data/feedback.jsonl

@@ -9,6 +9,7 @@ db_path = Path(__file__).resolve().parents[2] / "data" / "oracle.db"
 
 
 def get_db():
+    """Open a read-only connection used by retrieval and API requests."""
     db = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA query_only = ON")
@@ -16,6 +17,7 @@ def get_db():
 
 
 def get_info():
+    """Describe stored tables from SQLite metadata instead of hard-coded fields."""
     db = get_db()
     info = {}
 
