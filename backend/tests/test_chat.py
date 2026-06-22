@@ -90,6 +90,19 @@ class ChatTests(unittest.TestCase):
         self.assertIn("Alive", result["answer"])
         self.assertEqual(len(client.responses.calls), 1)
 
+    def test_grouped_extreme_has_a_natural_answer(self):
+        client = FakeClient([plan(
+            action="group",
+            field="species",
+            order_by={"field": "count", "direction": "asc"},
+            limit=1,
+        )])
+        result = chat("Which species has the fewest characters?", client=client)
+        self.assertEqual(
+            result["answer"],
+            "The species with the fewest characters is Disease (6).",
+        )
+
     def test_filtered_count_includes_readable_answer_and_names(self):
         client = FakeClient([plan(
             action="count",

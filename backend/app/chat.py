@@ -146,6 +146,18 @@ def query_answer(retrieval):
         return f"There are {count} {description}{detail}."
 
     if action in {"group", "distinct", "count"}:
+        if (
+            action == "group"
+            and len(rows) == 1
+            and plan["order_by"]["field"] == "count"
+        ):
+            label = "fewest" if plan["order_by"]["direction"] == "asc" else "most"
+            row = rows[0]
+            return (
+                f'The {field} with the {label} {plan["table"]} is '
+                f'{row["value"]} ({row["count"]}).'
+            )
+
         values = ", ".join(
             f'{row["value"]} ({row["count"]})' if "count" in row else str(row["value"])
             for row in rows[:20]

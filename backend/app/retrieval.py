@@ -211,6 +211,8 @@ means no requested limit. Use order_by.field='count' for grouped counts.
 Prefer a group plan when a user asks how many category values exist, so the answer can include
 both the number of values and their names. Use location_name for where someone currently lives,
 origin_name for where someone comes from, status for Alive/Dead, and species for Human/Alien.
+For the category with the most or fewest records, use group with order_by.field='count',
+direction='desc' or 'asc', and limit=1. Do not use extreme for grouped counts.
 Use air_date_iso, never air_date, for episode date filtering and ordering. For follow-up questions,
 preserve relevant filters and relations from the previous query unless the user replaces them.
 Choose boolean, scalar, entity, or table as answer_mode according to the requested answer.
@@ -297,9 +299,15 @@ def validate_plan(plan, schema):
         qualified_field(order_field, table, relation, schema)
 
     if action == "extreme":
-        if not order_field or order_field == "count":
+        if order_field == "count" and field != "*":
+            # Grouped extrema use COUNT ordering rather than entity-field ordering.
+            plan["action"] = "group"
+            action = "group"
+            plan["limit"] = 1
+        elif not order_field:
             raise ValueError("Extreme queries require an ordered field")
-        plan["limit"] = 1
+        else:
+            plan["limit"] = 1
 
     if action == "check":
         check = plan.get("check", {})

@@ -102,6 +102,17 @@ class RetrievalTests(unittest.TestCase):
         self.assertTrue(all(row["count"] > 100 for row in result["results"]))
         self.assertEqual(result["results"], sorted(result["results"], key=lambda row: row["count"], reverse=True))
 
+    def test_grouped_extreme_returns_the_smallest_group(self):
+        result = retrieve("Which species has the fewest characters?", plan=plan(
+            action="extreme",
+            answer_mode="entity",
+            field="species",
+            order_by={"field": "count", "direction": "asc"},
+            limit=1,
+        ))
+        self.assertEqual(result["query_context"]["action"], "group")
+        self.assertEqual(result["results"], [{"value": "Disease", "count": 6}])
+
     def test_extreme_uses_normalized_episode_date(self):
         result = retrieve("Which Summer episode aired first?", plan=plan(
             action="extreme",
