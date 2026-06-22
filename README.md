@@ -40,13 +40,25 @@ Requirements: Git, Python 3.13, and Node.js 20.19+.
 The backend is tested with Python 3.13.5. Check the available interpreters with
 `py -0p` and avoid reusing a virtual environment created by another Python version.
 
-All commands below use PowerShell.
+Use a local PowerShell terminal for the clone step. After opening the downloaded
+project in VS Code, run the remaining commands in the integrated terminal.
 
-### 1. Clone and install the backend
+### 1. Clone and open the project
 
 ```powershell
 git clone https://github.com/jiaying98/interdimensional-oracle.git
 cd interdimensional-oracle
+code .
+```
+
+`code .` opens the downloaded folder in VS Code. If the `code` command is not
+available, open the same folder with **File > Open Folder**.
+
+### 2. Create the Python environment
+
+Open a new PowerShell terminal in VS Code. It should start in the project root:
+
+```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend\requirements.txt
@@ -55,7 +67,7 @@ python -m pip install -r backend\requirements.txt
 The repository is already configured for Git. Do not run `git init` after
 cloning it.
 
-### 2. Create the local environment file
+### 3. Create the local environment file
 
 ```powershell
 Copy-Item .env.example .env
@@ -71,7 +83,7 @@ OPENAI_MODEL=gpt-5.4-mini
 `.env.example` is safe to commit. The real `.env` is ignored by Git and must
 never be uploaded.
 
-### 3. Download the data
+### 4. Download the data
 
 ```powershell
 cd backend
@@ -81,7 +93,7 @@ python -m app.ingestion
 This follows every API page and creates `data/oracle.db`. The generated database
 is local and is not stored in Git.
 
-### 4. Start the application
+### 5. Start the application
 
 Keep the first terminal in `backend/` and start FastAPI:
 
