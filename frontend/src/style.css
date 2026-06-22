@@ -1,4 +1,7 @@
 /* Shared light and dark theme styles for the Oracle interface. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
+
+
 :root {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
   color: #f8f3f6;
@@ -71,7 +74,7 @@ button {
 .app-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 305px 1fr;
+  grid-template-columns: clamp(220px, 24vw, 305px) minmax(0, 1fr);
   background: var(--page);
   color: var(--text);
 }
@@ -184,9 +187,9 @@ button {
 }
 
 .conversation-heading {
-  padding: 13px 7px 7px;
+  padding: 15px 8px 8px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -201,7 +204,7 @@ button {
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -424,9 +427,9 @@ button {
 }
 
 .welcome {
-  width: min(980px, calc(100% - 40px));
+  width: min(920px, calc(100% - 40px));
   margin: 0 auto;
-  padding: clamp(54px, 9vh, 96px) 0 30px;
+  padding: clamp(36px, 6vh, 72px) 0 30px;
   text-align: center;
 }
 
@@ -454,38 +457,64 @@ button {
 
 .welcome h1 {
   margin: 22px 0 0;
-  font-family: Impact, "Arial Narrow", sans-serif;
-  font-size: clamp(42px, 6vw, 70px);
+  font-family: "Sora", Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(32px, 3.5vw, 48px);
   font-weight: 800;
-  letter-spacing: 0.015em;
+  letter-spacing: -0.04em;
   line-height: 1;
   text-transform: uppercase;
+
+  display: inline-block;
+  width: 21ch;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 3px solid var(--accent);
+  animation:
+    oracleTyping 2.5s steps(21) forwards,
+    oracleCursor 0.75s step-end infinite;
+}
+
+@keyframes oracleTyping {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 21ch;
+  }
+}
+
+@keyframes oracleCursor {
+  50% {
+    border-color: transparent;
+  }
 }
 
 .welcome-copy {
   margin: 16px auto 0;
   color: var(--muted);
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .database-description {
   max-width: 720px;
   margin: 10px auto 0;
   color: var(--faint);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
 .examples {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  margin: 44px auto 0;
+  gap: clamp(10px, 1vw, 18px);
+  margin: clamp(28px, 4vh, 40px) auto 0;
 }
 
 .examples button {
   position: relative;
-  min-height: 180px;
+  min-height: clamp(135px, 16vh, 165px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -512,22 +541,24 @@ button {
 
 .card-icon {
   color: var(--accent-strong);
-  font-size: 47px;
+  font-size: clamp(36px, 3vw, 44px);
   line-height: 1;
 }
 
 .card-count {
-  width: 58%;
+  width: 72%;
   margin: 15px 0 12px;
   padding-bottom: 9px;
   border-bottom: 1px solid var(--border);
   color: var(--faint);
-  font-size: 9px;
+  font-family: "Sora", Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .examples strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .chat-thread {
@@ -807,13 +838,53 @@ td:first-child {
 }
 
 @media (max-width: 1050px) {
+  .main-panel {
+    height: calc(100vh - 16px);
+    margin: 8px;
+  }
+
+  .topbar {
+    gap: 12px;
+    padding-inline: 14px;
+  }
+
+  .topbar-title {
+    gap: 10px;
+  }
+
+  .topbar-actions {
+    gap: 10px;
+  }
+
+  .model-badge {
+    min-width: 160px;
+    padding-inline: 12px;
+  }
+
+  .welcome {
+    width: calc(100% - 24px);
+    padding-top: clamp(28px, 5vh, 48px);
+  }
+
+  .welcome h1 {
+    width: auto;
+    font-size: clamp(26px, 3.4vw, 36px);
+    white-space: normal;
+    border-right: 0;
+    animation: none;
+  }
+
+  .welcome-copy {
+    font-size: clamp(14px, 1.8vw, 17px);
+  }
+
   .examples {
     grid-template-columns: repeat(2, 1fr);
-    max-width: 650px;
+    max-width: 560px;
   }
 
   .examples button {
-    min-height: 135px;
+    min-height: clamp(115px, 15vh, 135px);
   }
 }
 
@@ -873,7 +944,11 @@ td:first-child {
   }
 
   .welcome h1 {
-    font-size: 42px;
+    width: auto;
+    font-size: 34px;
+    white-space: normal;
+    border-right: 0;
+    animation: none;
   }
 
   .examples {

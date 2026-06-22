@@ -22,8 +22,10 @@ const conversations = ref(saved)
 const activeId = ref(localStorage.getItem("oracle-active-conversation") || "")
 
 const exploreCards = [
-  { icon: "◎", title: "Ask about a character", question: "Who is Rick Sanchez?", count: "826 records" },
-  { icon: "⌖", title: "Discover a location", question: "Who lives on the Citadel of Ricks?", count: "126 places" },
+  //{ icon: "◎", title: "Ask about a character", question: "Who is Rick Sanchez?", count: "826 records" },
+  //{ icon: "⌖", title: "Discover a location", question: "Who lives on the Citadel of Ricks?", count: "126 places" },
+  { icon: "☻", title: "Ask about a character", question: "Who is Rick Sanchez?", count: "826 records" },
+  { icon: "⌂", title: "Discover a location", question: "Who lives on the Citadel of Ricks?", count: "126 places" },
   { icon: "▦", title: "Explore an episode", question: "Which episodes feature Summer Smith?", count: "51 episodes" },
   { icon: "⌘", title: "Filter the universe", question: "Which characters are alive?", count: "Status and traits" },
 ]
