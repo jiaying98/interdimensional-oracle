@@ -1,3 +1,4 @@
+/* Shared light and dark theme styles for the Oracle interface. */
 :root {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
   color: #f8f3f6;
@@ -605,6 +606,39 @@ button {
   border-radius: 7px;
   background: var(--surface);
   font-size: 12px;
+}
+
+.feedback-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 13px;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.feedback-controls button {
+  width: 30px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--soft-border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 13px;
+  filter: grayscale(1);
+}
+
+.feedback-controls button:hover:not(:disabled),
+.feedback-controls button.selected {
+  border-color: var(--accent-strong);
+  background: var(--surface-hover);
+  filter: none;
+}
+
+.feedback-controls button:disabled:not(.selected) {
+  opacity: 0.4;
 }
 
 .result-table-card {

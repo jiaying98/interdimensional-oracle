@@ -1,3 +1,5 @@
+"""Open the local SQLite database and summarize its available data."""
+
 import sqlite3
 import json
 from pathlib import Path
@@ -7,8 +9,9 @@ db_path = Path(__file__).resolve().parents[2] / "data" / "oracle.db"
 
 
 def get_db():
-    db = sqlite3.connect(db_path)
+    db = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
     db.row_factory = sqlite3.Row
+    db.execute("PRAGMA query_only = ON")
     return db
 
 

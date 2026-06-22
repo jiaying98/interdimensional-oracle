@@ -1,3 +1,4 @@
+<!-- The main Vue interface stores conversations and connects them to the Oracle API. -->
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 
@@ -34,6 +35,7 @@ function createConversation() {
     messages: [],
     responseId: null,
     lastEntity: null,
+    lastQuery: null,
     updatedAt: Date.now(),
   }
   conversations.value.unshift(conversation)
@@ -140,6 +142,7 @@ async function sendMessage() {
 
   const body = { question: text }
   if (conversation.responseId) body.previous_response_id = conversation.responseId
+  if (conversation.lastQuery) body.last_query = conversation.lastQuery
   const previousSource = [...conversation.messages]
     .reverse()
     .find((message) => message.sources?.length === 1)?.sources[0]
@@ -158,12 +161,15 @@ async function sendMessage() {
     conversation.messages.push({
       role: "assistant",
       text: data.answer,
-      sources: data.table ? [] : data.sources || [],
+      question: text,
+      sources: data.table?.type === "aggregate" ? data.sources || [] : data.table ? [] : data.sources || [],
       table: data.table || null,
       visibleRows: 10,
+      feedback: null,
     })
     if (data.response_id) conversation.responseId = data.response_id
     if (data.last_entity) conversation.lastEntity = data.last_entity
+    if (data.query_context) conversation.lastQuery = data.query_context
     conversation.updatedAt = Date.now()
   } catch (requestError) {
     error.value = requestError.message || "Could not connect to the server."
@@ -182,15 +188,42 @@ function showMore(message) {
   message.visibleRows = (message.visibleRows || 10) + 20
 }
 
-function tableColumns(type) {
-  if (type === "episodes") {
+async function sendFeedback(message, helpful) {
+  if (message.feedback !== null && message.feedback !== undefined) return
+  const conversation = activeConversation.value
+  const index = conversation.messages.indexOf(message)
+  const previousQuestion = [...conversation.messages.slice(0, index)]
+    .reverse()
+    .find((item) => item.role === "user")?.text
+
+  try {
+    const response = await fetch(`${apiUrl}/api/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation_id: conversation.id,
+        question: message.question || previousQuestion || "",
+        answer: message.text,
+        helpful,
+      }),
+    })
+    if (!response.ok) throw new Error("Could not save feedback.")
+    message.feedback = helpful
+  } catch (requestError) {
+    error.value = requestError.message || "Could not save feedback."
+  }
+}
+
+function tableColumns(table) {
+  if (table.columns) return table.columns
+  if (table.type === "episodes") {
     return [
       { key: "name", label: "Episode" },
       { key: "code", label: "Code" },
       { key: "air_date", label: "Air date" },
     ]
   }
-  if (type === "locations") {
+  if (table.type === "locations") {
     return [
       { key: "name", label: "Location" },
       { key: "type", label: "Type" },
@@ -334,31 +367,37 @@ function tableColumns(type) {
 
               <div v-if="message.table" class="result-table-card">
                 <div class="table-heading">
-                  <strong>{{ message.table.total }} {{ message.table.type }}</strong>
+                  <strong>
+                    <template v-if="message.table.title">{{ message.table.title }}</template>
+                    <template v-else>
+                      {{ message.table.total }}<template v-if="message.table.match_total > message.table.total"> of {{ message.table.match_total }}</template>
+                      {{ message.table.type }}
+                    </template>
+                  </strong>
                   <span>Database results</span>
                 </div>
                 <div class="table-scroll">
                   <table>
                     <thead>
                       <tr>
-                        <th v-for="column in tableColumns(message.table.type)" :key="column.key">
+                        <th v-for="column in tableColumns(message.table)" :key="column.key">
                           {{ column.label }}
                         </th>
-                        <th>Source</th>
+                        <th v-if="message.table.type !== 'aggregate'">Source</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr
                         v-for="row in message.table.rows.slice(0, message.visibleRows || 10)"
-                        :key="row.id"
+                        :key="row.id || `${row.value}-${index}`"
                       >
                         <td
-                          v-for="column in tableColumns(message.table.type)"
+                          v-for="column in tableColumns(message.table)"
                           :key="column.key"
                         >
                           {{ row[column.key] || "Unknown" }}
                         </td>
-                        <td>
+                        <td v-if="message.table.type !== 'aggregate'">
                           <a :href="row.url" target="_blank" rel="noreferrer">View</a>
                         </td>
                       </tr>
@@ -386,6 +425,24 @@ function tableColumns(type) {
                 >
                   {{ source.name }}
                 </a>
+              </div>
+
+              <div v-if="message.role === 'assistant'" class="feedback-controls">
+                <span>{{ message.feedback === null || message.feedback === undefined ? "Was this helpful?" : "Feedback saved" }}</span>
+                <button
+                  type="button"
+                  aria-label="Helpful answer"
+                  :class="{ selected: message.feedback === true }"
+                  :disabled="message.feedback !== null && message.feedback !== undefined"
+                  @click="sendFeedback(message, true)"
+                >👍</button>
+                <button
+                  type="button"
+                  aria-label="Not helpful answer"
+                  :class="{ selected: message.feedback === false }"
+                  :disabled="message.feedback !== null && message.feedback !== undefined"
+                  @click="sendFeedback(message, false)"
+                >👎</button>
               </div>
             </div>
           </article>

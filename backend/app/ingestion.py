@@ -1,6 +1,9 @@
+"""Download every API page and rebuild the local searchable SQLite database."""
+
 import json
 import sqlite3
 import time
+from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -57,6 +60,7 @@ db.executescript(
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         air_date TEXT,
+        air_date_iso TEXT,
         code TEXT,
         url TEXT NOT NULL,
         created TEXT
@@ -123,12 +127,14 @@ for item in locations:
     )
 
 for item in episodes:
+    air_date_iso = datetime.strptime(item["air_date"], "%B %d, %Y").date().isoformat()
     db.execute(
-        "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             item["id"],
             item["name"],
             item["air_date"],
+            air_date_iso,
             item["episode"],
             item["url"],
             item["created"],

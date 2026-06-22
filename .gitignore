@@ -13,6 +13,7 @@ dist/
 # Downloaded API data (recreated with scripts/download_data.py)
 data/raw/
 data/*.db
+data/feedback.jsonl
 
 # Editors and operating systems
 .idea/
