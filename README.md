@@ -35,7 +35,10 @@ data/           generated database and feedback (not committed)
 
 ## Run locally from a fresh clone
 
-Requirements: Git, Python 3.12+, and Node.js 20.19+.
+Requirements: Git, Python 3.13, and Node.js 20.19+.
+
+The backend is tested with Python 3.13.5. Check the available interpreters with
+`py -0p` and avoid reusing a virtual environment created by another Python version.
 
 All commands below use PowerShell.
 
@@ -44,7 +47,7 @@ All commands below use PowerShell.
 ```powershell
 git clone https://github.com/jiaying98/interdimensional-oracle.git
 cd interdimensional-oracle
-py -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend\requirements.txt
 ```
